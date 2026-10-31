@@ -198,7 +198,7 @@ section{padding:48px 0}
     <div>
       <div class="k">Тіркелу</div>
       <h2>Орынды брондаңыз</h2>
-      <p class="s">Форматты таңдап, атыңыз бен қалаңызды жазыңыз. WhatsApp ашылады, менеджер төлем сілтемесін, офлайн мекенжайын және онлайн сілтемесін жібереді.</p>
+      <p class="s">Форматты таңдап, атыңыз бен қалаңызды жазыңыз. Өтініміңіз ұйымдастырушыға жіберілген соң WhatsApp автоматты түрде ашылады. Дайын хабарламаны жіберіңіз — менеджер төлем сілтемесін жібереді.</p>
     </div>
     <form id="f" novalidate>
       <label>Атыңыз<input type="text" id="name" autocomplete="given-name" placeholder="Сізге қалай жүгінейік"></label>
@@ -252,8 +252,27 @@ section{padding:48px 0}
     var q=new URLSearchParams(location.search),src=[q.get("utm_source"),q.get("utm_campaign"),q.get("utm_content")].filter(Boolean).join(" / ")||"тікелей кіру";
     var fmt=on.checked?"Online, 4 қараша (сәрсенбі), 20:00":"Offline, 3 қараша (сейсенбі), 13:00, Алматы",price=on.checked?"1 900 ₸":"3 500 ₸";
     var msg="Сәлеметсіз бе! «7 күнде +500 заказ жинау формуласы» мастер-класына тіркелгім келеді.\n\nФормат: "+fmt+"\nБағасы: "+price+"\nАты: "+n+"\nҚала: "+c+"\nДереккөз: "+src+"\n\nТөлем сілтемесін жібере аласыз ба?";
-    try{if(typeof fbq==="function")fbq("track","Lead")}catch(x){}
-    setTimeout(function(){window.location.href="https://wa.me/"+WA+"?text="+encodeURIComponent(msg)},250);
+    var button=f.querySelector("button[type=submit]");
+    if(button.disabled)return;
+    button.disabled=true;
+    var label=button.textContent;button.textContent="Жіберілуде…";
+    var controller=new AbortController();
+    var timeout=setTimeout(function(){controller.abort()},15000);
+    fetch("https://kaspi-telegram-leads.bekassbi.workers.dev/leads",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:n,city:c,format:on.checked?"on":"off",source:src}),signal:controller.signal
+    }).then(function(response){
+      return response.json().then(function(data){
+        if(!response.ok || !data.ok)throw new Error("delivery");
+        clearTimeout(timeout);
+        try{if(typeof fbq==="function")fbq("track","Lead")}catch(x){}
+        button.textContent="Өтінім қабылданды!";
+        setTimeout(function(){window.location.href="https://wa.me/"+WA+"?text="+encodeURIComponent(msg)},250);
+      });
+    }).catch(function(){
+      clearTimeout(timeout);button.disabled=false;button.textContent=label;
+      err.textContent="Өтінімді жіберу мүмкін болмады. Қайта көріңіз.";
+    });
   });
 })();
 </script>
